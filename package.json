@@ -1,0 +1,9 @@
+{
+  "name": "echoes.im",
+  "version": "0.0.1",
+  "description": "parallax echoes server component",
+  "dependencies": {
+    "express": "~4.10.6",
+    "socket.io": "~1.2.1"
+  }
+}
