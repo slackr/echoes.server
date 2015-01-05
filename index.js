@@ -6,15 +6,29 @@
 var http = require('http').Server();
 var io = require('socket.io')(http);
 
-io.on('connection', function(socket) {
+io.use(function(client, next) {
+    var handshake = client.request;
+    console.log(handshake);
+    next();
+});
+
+io.on('connection', function(client) {
     console.log('nick connected');
 
-    socket.on('echo', function(echo){
+    client.on('echo', function(echo){
         console.log('echo: ' + echo);
         io.emit('echo', echo);
     });
 
-    socket.on('disconnect', function() {
+    client.on('/join', function(channel) {
+        client.join(channel);
+    });
+    client.on('/part', function(channel) {
+        client.leave(channel);
+    });
+
+
+    client.on('disconnect', function() {
         console.log('nick disconnected');
     });
 });

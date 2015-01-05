@@ -4,6 +4,7 @@
   "description": "parallax echoes server component",
   "dependencies": {
     "express": "~4.10.6",
-    "socket.io": "~1.2.1"
+    "socket.io": "~1.2.1",
+    "debug": "~2.1.1"
   }
 }
