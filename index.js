@@ -8,7 +8,7 @@ var io = require('socket.io')(http);
 
 io.use(function(client, next) {
     var handshake = client.request;
-    console.log(handshake);
+    console.log(handshake.query);
     next();
 });
 
