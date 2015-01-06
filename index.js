@@ -3,21 +3,26 @@
  *
  */
 
+var Nickname = require('./lib/nickname.js');
+var Channel = require('./lib/channel.js');
+var nick = null;
+
 var http = require('http').Server();
 var io = require('socket.io')(http);
+
 
 io.use(function(client, next) {
     var handshake = client.request;
     console.log(JSON.stringify(handshake._query));
 
     client.request.nickname = handshake._query.nickname;
-    
+    nick = new Nickname(client.request.nickname, client.id);
+
     next();
 });
 
 io.on('connection', function(client) {
-    var nickname = client.request.nickname ? client.request.nickname : client.id;
-    console.log(nickname + ' connected');
+    console.log(nick.name + ' connected');
 
     client.on('/echo', function(echo){
         if (echo.channel) {
@@ -29,21 +34,21 @@ io.on('connection', function(client) {
     });
 
     client.on('/join', function(args) {
-        var channel = args[0];
+        var channel = new Channel(args[0]);
 
-        client.join(channel);
-        io.to(channel).emit('*join', { nickname: nickname, channel: channel });
+        client.join(channel.name);
+        io.to(channel.name).emit('*join', { nickname: nick.name, channel: channel.name });
 
-        console.log(nickname + ' joined ' + channel);
+        console.log(nick.name + ' joined ' + channel.name);
     });
 
     client.on('/part', function(args) {
-        var channel = args[0];
+        var channel = new Channel(args[0]);
 
-        io.to(channel).emit('*part', { nickname: nickname, channel: channel });
-        client.leave(channel);
+        io.to(channel.name).emit('*part', { nickname: nick.name, channel: channel.name });
+        client.leave(channel.name);
 
-        console.log(nickname + ' parted ' + channel);
+        console.log(nick.name + ' parted ' + channel.name);
     });
 
     client.on('/list', function(args) {
@@ -51,11 +56,11 @@ io.on('connection', function(client) {
         channels.splice(channels.indexOf(client.id), 1); // don't send back default client.id channel
         io.to(client.id).emit('*list', { channels: channels });
 
-        console.log(nickname + ' is in ' + JSON.stringify(channels));
+        console.log(nick.name + ' is in ' + JSON.stringify(channels));
     });
 
     client.on('disconnect', function() {
-        console.log(nickname + ' disconnected');
+        console.log(nick.name + ' disconnected');
     });
 });
 
