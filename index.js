@@ -45,16 +45,34 @@ io.on('connection', function(client) {
     });
 
     client.on('!keyx', function(data){
-        if (typeof $nicknames[data.to] != 'object') {
-            error('No such nickname: ' + data.to);
+        var nick = data.to;
+        var pubkey = data.pubkey;
+
+        if (typeof $nicknames[nick] != 'object') {
+            error('No such nickname: ' + nick);
             return;
         }
 
-        var broadcast = { to: data.to, from: client.nick.name, pubkey: data.pubkey };
-        io.to($nicknames[data.to].id).emit('*keyx', broadcast);
+        var broadcast = { to: nick, from: client.nick.name, pubkey: pubkey };
+        io.to($nicknames[nick].id).emit('*keyx', broadcast);
         io.to(client.id).emit('*keyx_sent', broadcast);
 
         console.log('keyx: ' + JSON.stringify(broadcast));
+    });
+    client.on('!eecho', function(eecho){
+        var nick = eecho.to;
+        var echo = eecho.echo;
+
+        if (typeof $nicknames[nick] != 'object') {
+            error('No such nickname: ' + nick);
+            return;
+        }
+
+        var broadcast = { to: nick, from: client.nick.name, echo: echo };
+        io.to($nicknames[nick].id).emit('*eecho', broadcast);
+        io.to(client.id).emit('*eecho_sent', broadcast);
+
+        console.log('eecho: ' + JSON.stringify(broadcast));
     });
 
     client.on('/join', function(args) {
@@ -128,12 +146,17 @@ io.on('connection', function(client) {
     });
 
     client.on('disconnect', function() {
-        console.log(client.nick.name + ' disconnected');
+        if (typeof $nicknames == 'undefined'
+            || typeof $nicknames[client.nick.name] == 'undefined') {
+            console.log('undefined in nicks: ' + $nicknames);
+        } else {
+            console.log(client.nick.name + ' disconnected');
 
-        $nicknames[client.nick.name].channels.forEach(function(val, index) {
-            $channels[val].part($nicknames[client.nick.name]);
-        });
-        delete $nicknames[client.nick.name];
+            $nicknames[client.nick.name].channels.forEach(function(val, index) {
+                $channels[val].part($nicknames[client.nick.name]);
+            });
+            delete $nicknames[client.nick.name];
+        }
 
     });
 
