@@ -52,6 +52,11 @@ io.on('connection', function(client) {
             error('No such nickname: ' + nick);
             return;
         }
+        if (typeof pubkey != 'object'
+            && typeof pubkey != 'string') {
+            error('Invalid pubkey. Will not broadcast key exchange to: ' + nick);
+            return;
+        }
 
         var broadcast = { to: nick, from: client.nick.name, pubkey: pubkey };
         io.to($nicknames[nick].id).emit('*keyx', broadcast);
