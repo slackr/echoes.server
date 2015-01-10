@@ -21,13 +21,19 @@ io.use(function(client, next) {
     console.log(JSON.stringify(handshake._query));
 
     client.request.nickname = handshake._query.nickname;
-    client.nick = new Nickname(client.request.nickname, client.id)
+    client.nick = new Nickname(client.request.nickname, client.id);
+    if (! client.nick.sane) {
+        return next(new Error('Invalid nickname. Please try again'));
+    }
+
     $nicknames[client.nick.name] = client.nick;
 
-    next();
+    return next();
 });
 
 io.on('connection', function(client) {
+    io.to(client.id).emit('*me', client.nick.name);
+
     console.log(client.nick.name + ' connected');
 
     client.on('/echo', function(echo) {
