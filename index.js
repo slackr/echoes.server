@@ -168,10 +168,10 @@ io.on('connection', function(client) {
     client.on('disconnect', function() {
         if (typeof $nicknames == 'undefined'
             || typeof client == 'undefined'
-            || typeof client.nick == 'undefined'
+            || typeof client.nickname == 'undefined'
             || typeof $nicknames[client.nickname] == 'undefined') {
-            console.log('undefined catch: ' + $nicknames);
-            console.log('undefined catch: ' + $client);
+            console.log('undefined catch: ' + JSON.stringify($nicknames));
+            console.log('undefined catch: ' + JSON.stringify(client));
         } else {
             console.log(client.nickname + ' disconnected');
 
