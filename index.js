@@ -5,6 +5,7 @@
 
 var Nickname = require('./lib/nickname.js');
 var Channel = require('./lib/channel.js');
+var Tools = require('./lib/tools.js');
 
 var express = require('express');
 var app = express();
@@ -15,50 +16,53 @@ var io = require('socket.io')(http);
 
 var $nicknames = {};
 var $channels = {};
+var $tools = new Tools($nicknames, $channels);
 
 io.use(function(client, next) {
     var handshake = client.request;
-    console.log(JSON.stringify(handshake._query));
 
-    client.request.nickname = handshake._query.nickname;
-    client.nick = new Nickname(client.request.nickname, client.id);
-    if (! client.nick.sane) {
+    var nick = new Nickname(handshake._query.nickname, client.id);
+    if (! nick.sane) {
         return next(new Error('Invalid nickname. Please try again'));
     }
+    if ($tools.is_nickname(nick.name)) {
+        return next(new Error('Nickname already exists. Please try something else'));
+    }
 
-    $nicknames[client.nick.name] = client.nick;
+    client.nickname = nick.name;
+    $nicknames[nick.name] = nick;
 
     return next();
 });
 
 io.on('connection', function(client) {
-    io.to(client.id).emit('*me', client.nick.name);
+    io.to(client.id).emit('*me', client.nickname);
 
-    console.log(client.nick.name + ' connected');
+    console.log(client.nickname + ' connected');
 
     client.on('/echo', function(echo) {
-        if (is_channel(echo.channel)
-            && is_in(client.nick.name, echo.channel)) {
+        if ($tools.is_channel(echo.channel)
+            && $tools.is_in(client.nickname, echo.channel)) {
             io.to(echo.channel).emit('*echo', {
-                nickname: client.nick.name,
+                nickname: client.nickname,
                 echo: echo.echo,
                 channel: echo.channel
             });
         } else {
             io.emit('*echo', {
-                nickname: client.nick.name,
+                nickname: client.nickname,
                 echo: echo.echo
             });
         }
 
-        console.log('echo (' + client.nick.name + '): ' + JSON.stringify(echo));
+        console.log('echo (' + client.nickname + '): ' + JSON.stringify(echo));
     });
 
     client.on('!keyx', function(data){
         var nick = data.to;
         var pubkey = data.pubkey;
 
-        if (typeof $nicknames[nick] != 'object') {
+        if (! $tools.is_nickname(nick)) {
             error('No such nickname: ' + nick);
             return;
         }
@@ -68,7 +72,7 @@ io.on('connection', function(client) {
             return;
         }
 
-        var broadcast = { to: nick, from: client.nick.name, pubkey: pubkey };
+        var broadcast = { to: nick, from: client.nickname, pubkey: pubkey };
         io.to($nicknames[nick].id).emit('*keyx', broadcast);
         io.to(client.id).emit('*keyx_sent', broadcast);
 
@@ -78,12 +82,12 @@ io.on('connection', function(client) {
         var nick = eecho.to;
         var echo = eecho.echo;
 
-        if (typeof $nicknames[nick] != 'object') {
+        if (! $tools.is_nickname(nick)) {
             error('No such nickname: ' + nick);
             return;
         }
 
-        var broadcast = { to: nick, from: client.nick.name, echo: echo };
+        var broadcast = { to: nick, from: client.nickname, echo: echo };
         io.to($nicknames[nick].id).emit('*eecho', broadcast);
         io.to(client.id).emit('*eecho_sent', broadcast);
 
@@ -91,61 +95,62 @@ io.on('connection', function(client) {
     });
 
     client.on('/join', function(args) {
-        if (! is_string(args[0])) {
+        var chan = new Channel(args[0]);
+        if (! chan.sane) {
             error('Invalid channel name: ' + args[0]);
             return;
         }
-        var chan = new Channel(args[0]);
 
-        if (is_in(client.nick.name, chan.name)) {
+        if ($tools.is_in(client.nickname, chan.name)) {
             error('You are already in ' + chan.name);
             return;
         }
 
         client.join(chan.name);
 
-        if (! is_channel(chan.name)) {
+        if (! $tools.is_channel(chan.name)) {
             $channels[chan.name] = chan;
         }
 
-        $channels[chan.name].join(client.nick);
-        client.nick.channels.push(chan.name);
+        $channels[chan.name].join($nicknames[client.nickname]);
+        $nicknames[client.nickname].channels.push(chan.name);
 
-        io.to(chan.name).emit('*join', { nickname: client.nick.name, channel: chan.name });
-        console.log(client.nick.name + ' joined ' + chan.name);
+        io.to(chan.name).emit('*join', { nickname: client.nickname, channel: chan.name });
+        console.log(client.nickname + ' joined ' + chan.name);
     });
 
     client.on('/part', function(args) {
-        if (! is_string(args[0])) {
+        var chan = new Channel(args[0]);
+        if (! chan.sane) {
             error('Invalid channel name: ' + args[0]);
             return;
         }
-        var chan = new Channel(args[0]);
+
         args.shift();
         var reason = args.join(' ');
 
-        if (! is_in(client.nick.name, chan.name)) {
+        if (! $tools.is_in(client.nickname, chan.name)) {
             error('You are not in ' + chan.name);
             return;
         }
 
-        io.to(chan.name).emit('*part', { nickname: client.nick.name, channel: chan.name, reason: reason });
+        io.to(chan.name).emit('*part', { nickname: client.nickname, channel: chan.name, reason: reason });
 
         client.leave(chan.name);
-        $channels[chan.name].part(client.nick);
-        delete $nicknames[client.nick.name].channels[$nicknames[client.nick.name].channels.indexOf(chan.name)];
+        $channels[chan.name].part($nicknames[client.nickname]);
+        delete $nicknames[client.nickname].channels[$nicknames[client.nickname].channels.indexOf(chan.name)];
 
-        console.log(client.nick.name + ' parted ' + chan.name);
+        console.log(client.nickname + ' parted ' + chan.name);
     });
 
     client.on('/list', function(args) {
-        var chans = list();
+        var chans = $tools.list();
 
         io.to(client.id).emit('*list', { channels: chans });
     });
 
     client.on('/ulist', function(args) {
-        var chans = ulist();
+        var chans = $tools.ulist(client.id, client.rooms);
 
         if (chans.length == 0) {
             error('You are not in any channels. /join one first');
@@ -155,75 +160,31 @@ io.on('connection', function(client) {
     });
 
     client.on('/who', function(args) {
-        var nicks = who();
+        var nicks = $tools.who();
 
         io.to(client.id).emit('*who', { nicknames: nicks });
     });
 
     client.on('disconnect', function() {
         if (typeof $nicknames == 'undefined'
-            || typeof $nicknames[client.nick.name] == 'undefined') {
-            console.log('undefined in nicks: ' + $nicknames);
+            || typeof client == 'undefined'
+            || typeof client.nick == 'undefined'
+            || typeof $nicknames[client.nickname] == 'undefined') {
+            console.log('undefined catch: ' + $nicknames);
+            console.log('undefined catch: ' + $client);
         } else {
-            console.log(client.nick.name + ' disconnected');
+            console.log(client.nickname + ' disconnected');
 
-            $nicknames[client.nick.name].channels.forEach(function(val, index) {
-                $channels[val].part($nicknames[client.nick.name]);
+            $nicknames[client.nickname].channels.forEach(function(chan, index) {
+                $channels[chan].part($nicknames[client.nickname]);
             });
-            delete $nicknames[client.nick.name];
+            delete $nicknames[client.nickname];
         }
-
     });
 
-    function list() {
-        var chans = [];
-        chans = Object.keys($channels);
-
-        console.log('list: ' + JSON.stringify(chans));
-        return chans;
-    };
-
-    function ulist() {
-        var chans = [];
-
-        chans = JSON.parse(JSON.stringify(client.rooms)); // pass by value
-        console.log(chans);
-        chans.splice(chans.indexOf(client.id), 1); // don't send back default client.id channel
-
-        console.log('list (' + client.nick.name + '): ' + JSON.stringify(chans));
-        return chans;
-    }
-
-    function who() {
-        var nicks = Object.keys($nicknames);
-
-        console.log('who: ' + JSON.stringify(nicks));
-        return nicks;
-    }
-
     function error(message) {
-        console.log('to ' + client.nick.name + ': ' + message);
+        console.log('to ' + client.nickname + ': ' + message);
         io.to(client.id).emit('*error', message);
-    }
-
-    function is_in(nick, channel) {
-        if (! is_channel(channel)
-            || typeof $channels[channel].members[nick] == 'undefined') {
-            console.log(nick + ' is not in ' + channel);
-            return false;
-        }
-        return true;
-    }
-
-    function is_channel(channel) {
-        if (typeof $channels[channel] == 'undefined') {
-            return false;
-        }
-        return true;
-    }
-
-    function is_string(string) {
-        return (typeof string == 'string' && string.length > 0);
     }
 });
 
