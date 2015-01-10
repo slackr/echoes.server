@@ -6,7 +6,11 @@
 var Nickname = require('./lib/nickname.js');
 var Channel = require('./lib/channel.js');
 
-var http = require('http').Server();
+var express = require('express');
+var app = express();
+//app.use('/lib', express.static(__dirname + '/lib'));
+
+var http = require('http').Server(app);
 var io = require('socket.io')(http);
 
 var $nicknames = {};
