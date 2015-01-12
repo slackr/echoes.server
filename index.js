@@ -23,10 +23,10 @@ io.use(function(client, next) {
 
     var nick = new Nickname(handshake._query.nickname, client.id);
     if (! nick.sane) {
-        return next(new Error('Invalid nickname. Please try again'));
+        return next(new Error('invalid_nick'));
     }
     if ($tools.is_nickname(nick.name)) {
-        return next(new Error('Nickname already exists. Please try something else'));
+        return next(new Error('nick_exists'));
     }
 
     client.nickname = nick.name;
