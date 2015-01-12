@@ -23,9 +23,11 @@ io.use(function(client, next) {
 
     var nick = new Nickname(handshake._query.nickname, client.id);
     if (! nick.sane) {
+        console.log('invalid nick: ' + JSON.stringify(nick));
         return next(new Error('invalid_nick'));
     }
     if ($tools.is_nickname(nick.name)) {
+        console.log('exists nick: ' + JSON.stringify(nick));
         return next(new Error('nick_exists'));
     }
 
@@ -41,17 +43,18 @@ io.on('connection', function(client) {
     console.log(client.nickname + ' connected');
 
     client.on('/echo', function(echo) {
-        if ($tools.is_channel(echo.channel)
-            && $tools.is_in(client.nickname, echo.channel)) {
-            io.to(echo.channel).emit('*echo', {
+        if ($tools.is_channel(echo.to)
+            && $tools.is_in(client.nickname, echo.to)) {
+            io.to(echo.to).emit('*echo', {
                 nickname: client.nickname,
                 echo: echo.echo,
-                channel: echo.channel
+                to: echo.to
             });
         } else {
             io.emit('*echo', {
                 nickname: client.nickname,
-                echo: echo.echo
+                echo: echo.echo,
+                to: echo.to
             });
         }
 
