@@ -41,6 +41,7 @@ io.on('connection', function(client) {
     io.to(client.id).emit('*me', client.nickname);
 
     console.log(client.nickname + ' connected');
+    client.broadcast.emit('*connect', { nickname: client.nickname });
 
     client.on('/echo', function(echo) {
         if ($tools.is_channel(echo.to)
@@ -96,6 +97,19 @@ io.on('connection', function(client) {
         io.to(client.id).emit('*keyx_sent', broadcast);
 
         console.log('keyx: ' + JSON.stringify(broadcast));
+    });
+    client.on('!keyx_off', function(data){
+        var nick = data.to;
+
+        if (! $tools.is_nickname(nick)) {
+            error('No such nickname: ' + nick);
+            return;
+        }
+
+        var broadcast = { to: nick, from: client.nickname };
+        io.to($nicknames[nick].id).emit('*keyx_off', broadcast);
+
+        console.log('keyx_off: ' + JSON.stringify(broadcast));
     });
 
     client.on('/join', function(args) {
@@ -178,6 +192,7 @@ io.on('connection', function(client) {
             console.log('undefined catch: ' + JSON.stringify(client));
         } else {
             console.log(client.nickname + ' disconnected');
+            client.broadcast.emit('*disconnect', { nickname: client.nickname });
 
             $nicknames[client.nickname].channels.forEach(function(chan, index) {
                 $channels[chan].part($nicknames[client.nickname]);
