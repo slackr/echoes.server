@@ -46,15 +46,31 @@ io.on('connection', function(client) {
         if ($tools.is_channel(echo.to)
             && $tools.is_in(client.nickname, echo.to)) {
             io.to(echo.to).emit('*echo', {
-                nickname: client.nickname,
+                from: client.nickname,
                 echo: echo.echo,
-                to: echo.to
+                to: echo.to,
+                type: 'channel',
             });
+        } else if ($tools.is_nickname(echo.to)) {
+            var broadcast = {
+                from: client.nickname,
+                echo: echo.echo,
+                to: echo.to,
+                type: (echo.type == 'encrypted' ? 'encrypted' : 'pm'),
+            };
+
+            io.to($nicknames[echo.to].id).emit('*echo', broadcast);
+            if (echo.type == 'encrypted') {
+                io.to(client.id).emit('*eecho_sent', broadcast);
+            } else {
+                io.to(client.id).emit('*echo', broadcast); // echo PM back to sender if unencrypted
+            }
         } else {
             io.emit('*echo', {
-                nickname: client.nickname,
+                from: client.nickname,
                 echo: echo.echo,
-                to: echo.to
+                to: echo.to,
+                type: 'all',
             });
         }
 
@@ -80,21 +96,6 @@ io.on('connection', function(client) {
         io.to(client.id).emit('*keyx_sent', broadcast);
 
         console.log('keyx: ' + JSON.stringify(broadcast));
-    });
-    client.on('!eecho', function(eecho){
-        var nick = eecho.to;
-        var echo = eecho.echo;
-
-        if (! $tools.is_nickname(nick)) {
-            error('No such nickname: ' + nick);
-            return;
-        }
-
-        var broadcast = { to: nick, from: client.nickname, echo: echo };
-        io.to($nicknames[nick].id).emit('*eecho', broadcast);
-        io.to(client.id).emit('*eecho_sent', broadcast);
-
-        console.log('eecho: ' + JSON.stringify(broadcast));
     });
 
     client.on('/join', function(args) {
@@ -163,7 +164,7 @@ io.on('connection', function(client) {
     });
 
     client.on('/who', function(args) {
-        var nicks = $tools.who();
+        var nicks = $tools.who(client.nickname);
 
         io.to(client.id).emit('*who', { nicknames: nicks });
     });
