@@ -27,7 +27,7 @@ io.use(function(client, next) {
         return next(new Error('invalid_nick'));
     }
     if ($tools.is_nickname(nick.name)) {
-        console.log('exists nick: ' + JSON.stringify(nick));
+        console.log('exists nick: ' + JSON.stringify(nick) + ' nicks: ' + JSON.stringify($nicknames));
         return next(new Error('nick_exists'));
     }
 
@@ -46,7 +46,7 @@ io.on('connection', function(client) {
     client.on('/echo', function(echo) {
         if ($tools.is_channel(echo.to)
             && $tools.is_in(client.nickname, echo.to)) {
-            io.to(echo.to).emit('*echo', {
+            client.broadcast.to(echo.to).emit('*echo', {
                 from: client.nickname,
                 echo: echo.echo,
                 to: echo.to,
@@ -63,11 +63,9 @@ io.on('connection', function(client) {
             io.to($nicknames[echo.to].id).emit('*echo', broadcast);
             if (echo.type == 'encrypted') {
                 io.to(client.id).emit('*eecho_sent', broadcast);
-            } else {
-                io.to(client.id).emit('*echo', broadcast); // echo PM back to sender if unencrypted
             }
         } else {
-            io.emit('*echo', {
+            client.broadcast.emit('*echo', {
                 from: client.nickname,
                 echo: echo.echo,
                 to: echo.to,
@@ -183,6 +181,15 @@ io.on('connection', function(client) {
         io.to(client.id).emit('*who', { nicknames: nicks });
     });
 
+    client.on('/pm', function(nick) {
+        if (! $tools.is_nickname(nick)) {
+            error('No such nickname: ' + nick);
+            return;
+        }
+        console.log('pm request from ' + client.nickname + ' to ' + nick);
+        io.to(client.id).emit('*pm', nick);
+    });
+
     client.on('disconnect', function() {
         if (typeof $nicknames == 'undefined'
             || typeof client == 'undefined'
@@ -202,7 +209,7 @@ io.on('connection', function(client) {
     });
 
     function error(message) {
-        console.log('to ' + client.nickname + ': ' + message);
+        console.log('error to ' + client.nickname + ': ' + message);
         io.to(client.id).emit('*error', message);
     }
 });
