@@ -1,0 +1,15 @@
+module.exports = {
+    LOG_LEVEL: 3,
+    CONSOLE_LOG: true,
+    SERVER_PORT: 3000,
+
+    ALLOWED_TRANSPORTS: [
+        'websocket',
+        //'htmlfile',
+        //'xhr-polling',
+        //'jsonp-polling',
+    ],
+
+    VALID_NICK_REGEX: /[^a-z0-9\-\_]+/gi,
+    VALID_CHAN_REGEX: /[^a-z0-9\-\_]+/gi,
+}
