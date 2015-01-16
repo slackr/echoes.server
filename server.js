@@ -39,16 +39,17 @@ io.use(function(client, next) {
     var handshake = client.request;
 
     var nick = new Nickname(handshake._query.nickname, client.id);
+    client.fatal_error = '';
     if (! nick.sane) {
+        client.fatal_error = 'nick_invalid';
         $s.log('invalid nick: ' + nick.name, 3);
-        return next(new Error('invalid_nick'));
     }
 
     $s.log(nick.name + ' (' + client.id + ') is attempting to connect via: ' + client.request._query.transport);
 
     if ($s.is_nickname(nick.name)) {
-        $s.log('nick exists: ' + nick.name + ' id: ' + nick.id + ' existing id: ' + $s.nicknames[nick.name].id, 3);
-        return next(new Error('nick_exists'));
+        client.fatal_error = 'nick_exists';
+        $s.log('nick exists: ' + nick.name, 3);
     }
 
     client.nickname = nick.name;
@@ -57,6 +58,12 @@ io.use(function(client, next) {
 });
 
 io.on('connection', function(client) {
+    if (client.fatal_error != '') {
+        io.to(client.id).emit('*fatal', client.fatal_error);
+        client.disconnect();
+        return;
+    }
+
     io.to(client.id).emit('*me', client.nickname);
 
     $s.log(client.nickname + ' (' + client.id + ') connected via: ' + client.request._query.transport);
