@@ -107,6 +107,7 @@ io.on('connection', function(client) {
     client.on('!keyx', function(data){
         var nick = data.to;
         var pubkey = data.pubkey;
+        var keychain = data.keychain;
 
         if (! $s.is_nickname(nick)) {
             error('No such nickname: ' + nick);
@@ -117,8 +118,13 @@ io.on('connection', function(client) {
             error('Invalid pubkey. Will not broadcast key exchange to: ' + nick);
             return;
         }
+        if (typeof keychain != 'object'
+            && typeof keychain != 'string') {
+            error('Invalid keychain. Will not broadcast key exchange to: ' + nick);
+            return;
+        }
 
-        var broadcast = { to: nick, from: client.nickname, pubkey: pubkey };
+        var broadcast = { to: nick, from: client.nickname, pubkey: pubkey, keychain: keychain };
         io.to($nicknames[nick].id).emit('*keyx', broadcast);
         io.to(client.id).emit('*keyx_sent', broadcast);
 
@@ -136,6 +142,19 @@ io.on('connection', function(client) {
         io.to($nicknames[nick].id).emit('*keyx_off', broadcast);
 
         $s.log('keyx_off: ' + JSON.stringify(broadcast));
+    });
+    client.on('!keyx_unsupported', function(data){
+        var nick = data.to;
+
+        if (! $s.is_nickname(nick)) {
+            error('No such nickname: ' + nick);
+            return;
+        }
+
+        var broadcast = { to: nick, from: client.nickname };
+        io.to($nicknames[nick].id).emit('*keyx_unsupported', broadcast);
+
+        $s.log('keyx_unsupported ' + JSON.stringify(broadcast));
     });
 
     client.on('/join', function(args) {
