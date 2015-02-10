@@ -1,6 +1,8 @@
 /**
- * simple ws chat from socket.io :)
+ * Echoes Server
  *
+ * @author  Adrian@Slacknet
+ * @license http://www.gnu.org/licenses/gpl-3.0.txt GPLv3
  */
 
 var config_exists = function() {
