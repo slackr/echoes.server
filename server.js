@@ -20,7 +20,7 @@ global.AppConfig = require((config_exists() ? './lib/config.js' : './lib/config.
 global.EchoesObject = require('./lib/object.js');
 var Nickname = require('./lib/nickname.js');
 var Channel = require('./lib/channel.js');
-var EchoesServer = require('./lib/eserver.js');
+var EchoesServer = require('./lib/echoes.js');
 
 var express = require('express');
 var app = express();
