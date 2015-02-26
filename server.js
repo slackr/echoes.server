@@ -83,7 +83,11 @@ io.on('connection', function(client) {
                     return;
                 }
 
-                response = JSON.parse(response);
+                try {
+                    response = JSON.parse(response);
+                } catch(e) {
+                    response = { status: 'error', message: e.message };
+                }
 
                 $server.log('auth response: ' + JSON.stringify(response), 0);
 
