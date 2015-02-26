@@ -26,11 +26,11 @@ var express = require('express');
 var app = express();
 //app.use('/lib', express.static(__dirname + '/lib'));
 
+var request = require('request');
 var http = require('http').Server(app);
 var io = require('socket.io')(http, {
     transports: AppConfig.ALLOWED_TRANSPORTS
 });
-
 var port = process.env.PORT || AppConfig.SERVER_PORT; // for azure's sake
 
 var $nicknames = {};
@@ -49,7 +49,7 @@ io.use(function(client, next) {
         $server.log('invalid nick: ' + nick.name, 3);
     }
 
-    $server.log(nick.name + ' (' + client.id + ') is attempting to connect via: ' + client.request._query.transport);
+    $server.log(nick.name + ' (' + client.id + '@' + client.handshake.address + ') is attempting to connect via: ' + client.request._query.transport);
 
     if ($server.is_nickname(nick.name)) {
         client.fatal_error = 'nick_exists';
@@ -69,28 +69,56 @@ io.on('connection', function(client) {
         return;
     }
 
-    $server.attach_events(client);
+    request.post(AppConfig.PARALLAX_AUTH + '/verify-session/', {
+        form: {
+            identity: client.nickname,
+            session_id: client.session_id,
+            session_ip: client.handshake.address,
+        }},
+        (function(client, io) {
+            return function(error, status, response) {
+                if (error) {
+                    io.to(client.id).emit('*fatal', 'auth_http_error');
+                    client.disconnect();
+                    return;
+                }
 
-    $server.log(client.nickname + ' (' + client.id + ') connected via: ' + client.request._query.transport);
-    client.broadcast.emit('*connect', { nickname: client.nickname });
+                response = JSON.parse(response);
 
-    $nicknames[client.nickname] = new Nickname(client.nickname, client.id);
+                $server.log('auth response: ' + JSON.stringify(response), 0);
+
+                if (response.status != 'success') {
+                    io.to(client.id).emit('*fatal', 'auth_invalid_session');
+                    client.disconnect();
+                    return;
+                }
+
+                $server.attach_events(client);
+
+                $server.log(client.nickname + ' (' + client.id + '@' + client.handshake.address + ') connected via: ' + client.request._query.transport);
+                client.broadcast.emit('*connect', { nickname: client.nickname });
+
+                $nicknames[client.nickname] = new Nickname(client.nickname, client.id);
+            }
+        })(client, io)
+    );
 
     client.on('disconnect', function() {
-        if (typeof $nicknames == 'undefined'
-            || typeof client == 'undefined'
-            || typeof client.nickname == 'undefined'
-            || typeof $nicknames[client.nickname] == 'undefined') {
-            $server.log('undefined catch: ' + JSON.stringify($nicknames));
-            $server.log('undefined catch: ' + JSON.stringify(client));
-        } else {
-            $server.log(client.nickname + ' disconnected');
-            client.broadcast.emit('*disconnect', { nickname: client.nickname });
+        $server.log(client.nickname + ' disconnected');
+        client.broadcast.emit('*disconnect', { nickname: client.nickname });
 
-            $nicknames[client.nickname].channels.forEach(function(chan, index) {
-                $channels[chan].part($nicknames[client.nickname]);
-            });
+        if (typeof $nicknames[client.nickname] != 'undefined') {
+
+            $server.log('on disconnect: parting ' + client.nickname + ' from joined channels', 0);
+
+            for (var i in $nicknames[client.nickname].channels) {
+                $channels[$nicknames[client.nickname].channels[i]].part($nicknames[client.nickname]);
+            }
+
+            $server.log('on disconnect: forgetting ' + client.nickname, 0);
             delete $nicknames[client.nickname];
+        } else {
+            $server.log('on disconnect: ' + client.nickname + ' was not tracked', 0);
         }
     });
 });
