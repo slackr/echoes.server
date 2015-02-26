@@ -41,6 +41,7 @@ io.use(function(client, next) {
     var handshake = client.request;
     var incoming_nickname = handshake._query.nickname;
     var incoming_session_id = handshake._query.session_id;
+    var incoming_ip = client.handshake.headers['x-forwarded-for'] || client.handshake.address.address;
 
     var nick = new Nickname(incoming_nickname, client.id);
     client.fatal_error = '';
@@ -49,7 +50,7 @@ io.use(function(client, next) {
         $server.log('invalid nick: ' + nick.name, 3);
     }
 
-    $server.log(nick.name + ' (' + client.id + '@' + client.handshake.address + ') is attempting to connect via: ' + client.request._query.transport);
+    $server.log(nick.name + ' (' + client.id + '@' + incoming_ip + ') is attempting to connect via: ' + client.request._query.transport);
 
     if ($server.is_nickname(nick.name)) {
         client.fatal_error = 'nick_exists';
@@ -58,6 +59,7 @@ io.use(function(client, next) {
 
     client.nickname = nick.name;
     client.session_id = incoming_session_id;
+    client.session_ip = incoming_ip;
 
     return next();
 });
@@ -73,7 +75,7 @@ io.on('connection', function(client) {
         form: {
             identity: client.nickname,
             session_id: client.session_id,
-            session_ip: client.handshake.address,
+            session_ip: client.session_ip,
         }},
         (function(client, io) {
             return function(error, status, response) {
