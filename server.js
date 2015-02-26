@@ -85,7 +85,7 @@ io.on('connection', function(client) {
 
                 response = JSON.parse(response);
 
-                $server.log('auth response: ' + response, 0);
+                $server.log('auth response: ' + JSON.stringify(response), 0);
 
                 if (response.status != 'success') {
                     io.to(client.id).emit('*fatal', 'auth_invalid_session');
