@@ -101,7 +101,7 @@ io.on('connection', function(client) {
 
                 $server.attach_events(client);
 
-                $server.log(client.nickname + ' (' + client.id + '@' + client.handshake.address + ') connected via: ' + client.request._query.transport);
+                $server.log(client.nickname + ' (' + client.id + '@' + client.session_ip + ') connected via: ' + client.request._query.transport);
                 client.broadcast.emit('*connect', { nickname: client.nickname });
 
                 $nicknames[client.nickname] = new Nickname(client.nickname, client.id);
