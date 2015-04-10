@@ -18,24 +18,36 @@ var config_exists = function() {
 
 global.AppConfig = require((config_exists() ? './lib/config.js' : './lib/config.js.sample'));
 global.EchoesObject = require('./lib/object.js');
+
 var Nickname = require('./lib/nickname.js');
 var Channel = require('./lib/channel.js');
 var EchoesServer = require('./lib/echoes.js');
 
 var express = require('express');
 var app = express();
-//app.use('/lib', express.static(__dirname + '/lib'));
+var redis = require('redis').createClient;
+var adaptor = require('socket.io-redis');
 
 var request = require('request');
 var http = require('http').Server(app);
+
 var io = require('socket.io')(http, {
     transports: AppConfig.ALLOWED_TRANSPORTS
 });
+
 var port = process.env.PORT || AppConfig.SERVER_PORT; // for azure's sake
 
 var $nicknames = {};
 var $channels = {};
 var $server = new EchoesServer($nicknames, $channels, io);
+
+var pub = redis(AppConfig.REDIS_PORT, AppConfig.REDIS_HOST, {auth_pass: AppConfig.REDIS_KEY, return_buffers: true});
+var sub = redis(AppConfig.REDIS_PORT, AppConfig.REDIS_HOST, {auth_pass: AppConfig.REDIS_KEY, return_buffers: true});
+io.adapter(adaptor({
+    pubClient: pub,
+    subClient: sub
+}));
+
 
 io.use(function(client, next) {
     var handshake = client.request;
@@ -128,6 +140,7 @@ io.on('connection', function(client) {
         }
     });
 });
+
 
 http.listen(port, function(){
     $server.log('listening on *:' + port);

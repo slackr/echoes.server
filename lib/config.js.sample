@@ -14,4 +14,8 @@ module.exports = {
     VALID_CHAN_REGEX: /[^a-z0-9\-\_]+/gi,
 
     PARALLAX_AUTH: 'https://echoes.im',
+
+    REDIS_HOST: 'echoes-io.redis.cache.windows.net',
+    REDIS_PORT: 6379,
+    REDIS_KEY: '',
 }
