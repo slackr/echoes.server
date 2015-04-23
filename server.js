@@ -123,7 +123,6 @@ io.on('connection', function(client) {
 
     client.on('disconnect', function() {
         $server.log(client.nickname + ' disconnected');
-        client.broadcast.emit('*disconnect', { nickname: client.nickname });
 
         if (typeof $nicknames[client.nickname] != 'undefined') {
 
@@ -135,6 +134,7 @@ io.on('connection', function(client) {
 
             $server.log('on disconnect: forgetting ' + client.nickname, 0);
             delete $nicknames[client.nickname];
+            client.broadcast.emit('*disconnect', { nickname: client.nickname });
         } else {
             $server.log('on disconnect: ' + client.nickname + ' was not tracked', 0);
         }
