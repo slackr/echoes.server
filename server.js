@@ -46,6 +46,8 @@ var sub = redis(AppConfig.REDIS_PORT, AppConfig.REDIS_HOST, {auth_pass: AppConfi
 
 pub.on('error', function(e){ $server.log('redis (pub): '+ e, 3); });
 sub.on('error', function(e){ $server.log('redis (sub): '+ e, 3); });
+pub.on('ready', function(e){ $server.log('redis (pub) ready', 1); });
+sub.on('ready', function(e){ $server.log('redis (sub) ready', 1); });
 
 io.adapter(adapter({
     pubClient: pub,
