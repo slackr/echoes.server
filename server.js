@@ -1,3 +1,6 @@
+/* global process */
+/* global global */
+/* global AppConfig */
 /**
  * Echoes Server
  *
@@ -122,7 +125,7 @@ io.on('connection', function(client) {
                 client.broadcast.emit('*connect', { nickname: client.nickname });
 
                 $nicknames[client.nickname] = new Nickname(client.nickname, client.id);
-            }
+            };
         })(client, io)
     );
 
