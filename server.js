@@ -29,7 +29,23 @@ var EchoesServer = require('./lib/echoes.js');
 var express = require('express');
 var app = express();
 var redis = require('redis').createClient;
-var adapter = require('socket.io-redis');
+
+if (AppConfig.REDIS_ENABLED) {
+    var adapter = require('socket.io-redis');
+    var pub = redis(AppConfig.REDIS_PORT, AppConfig.REDIS_HOST, {auth_pass: AppConfig.REDIS_KEY, return_buffers: true});
+    var sub = redis(AppConfig.REDIS_PORT, AppConfig.REDIS_HOST, {auth_pass: AppConfig.REDIS_KEY, return_buffers: true});
+
+    pub.on('error', function(e){ $server.log('redis (pub): '+ e, 3); });
+    sub.on('error', function(e){ $server.log('redis (sub): '+ e, 3); });
+
+    io.adapter(adapter({
+        pubClient: pub,
+        subClient: sub
+    }));
+
+    //pub.on('ready', function(e){ $server.log('redis (pub) ready', 1); });
+    //sub.on('ready', function(e){ $server.log('redis (sub) ready', 1); });
+}
 
 var request = require('request');
 var http = require('http').Server(app);
@@ -43,19 +59,6 @@ var port = process.env.PORT || AppConfig.SERVER_PORT; // for azure's sake
 var $nicknames = {};
 var $channels = {};
 var $server = new EchoesServer($nicknames, $channels, io);
-
-var pub = redis(AppConfig.REDIS_PORT, AppConfig.REDIS_HOST, {auth_pass: AppConfig.REDIS_KEY, return_buffers: true});
-var sub = redis(AppConfig.REDIS_PORT, AppConfig.REDIS_HOST, {auth_pass: AppConfig.REDIS_KEY, return_buffers: true});
-
-pub.on('error', function(e){ $server.log('redis (pub): '+ e, 3); });
-sub.on('error', function(e){ $server.log('redis (sub): '+ e, 3); });
-//pub.on('ready', function(e){ $server.log('redis (pub) ready', 1); });
-//sub.on('ready', function(e){ $server.log('redis (sub) ready', 1); });
-
-io.adapter(adapter({
-    pubClient: pub,
-    subClient: sub
-}));
 
 io.use(function(client, next) {
     var handshake = client.request;

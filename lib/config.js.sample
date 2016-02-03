@@ -15,7 +15,8 @@ module.exports = {
 
     PARALLAX_AUTH: 'https://echoes.im',
 
-    REDIS_HOST: 'echoes-io.redis.cache.windows.net',
+    REDIS_ENABLED: false,
+    REDIS_HOST: '',
     REDIS_PORT: 6379,
     REDIS_KEY: '',
 }
