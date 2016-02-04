@@ -1,6 +1,6 @@
 module.exports = {
     LOG_LEVEL: 3,
-    CONSOLE_LOG: true,
+    LOG_FILE_NAME: 'server.log',
     SERVER_PORT: 3000,
 
     ALLOWED_TRANSPORTS: [

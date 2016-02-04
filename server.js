@@ -14,7 +14,7 @@ var config_exists = function() {
         f = require('fs').statSync('./lib/config.js').isFile();
         return true;
     } catch (e) {
-        console.log('./lib/config.js not found (did you make one?), will use defaults...');
+        console.log('./lib/config.js not found (did you make one?), will attempt to use defaults...');
         return false;
     }
 };
