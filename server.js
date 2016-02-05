@@ -65,6 +65,8 @@ io.use(function(client, next) {
     var incoming_session_id = client.request._query.session_id;
     var incoming_ip = client.handshake.headers['x-forwarded-for'] || (client.conn.remoteAddress || client.handshake.address.address || client.handshake.address || client.request.connection._peername.address);
 
+    incoming_ip = $server.clean_xff_header(incoming_ip);
+
     var nick = new Nickname(incoming_nickname, client.id);
     client.fatal_error = '';
     if (! nick.sane) {
