@@ -26,7 +26,6 @@ var Nickname = require('./lib/nickname.js');
 var Channel = require('./lib/channel.js');
 var EchoesServer = require('./lib/echoes.js');
 
-var crypto = require('crypto');
 var express = require('express');
 var app = express();
 var redis = require('redis').createClient;
@@ -64,13 +63,7 @@ var $server = new EchoesServer($nicknames, $channels, io);
 io.use(function(client, next) {
     var incoming_nickname = client.request._query.nickname;
     var incoming_session_id = client.request._query.session_id;
-    var incoming_ip = (client.conn.remoteAddress || client.handshake.address.address || client.handshake.address || client.request.connection._peername.address);
-
-    if (typeof client.handshake.headers['x-forwarded-for'] != 'undefined') {
-        incoming_ip += client.handshake.headers['x-forwarded-for'];
-    }
-
-    var incoming_ip_hash = crypto.createHash('md5').update(incoming_ip).digest('hex');
+    var incoming_ip = client.handshake.headers['x-forwarded-for'] || (client.conn.remoteAddress || client.handshake.address.address || client.handshake.address || client.request.connection._peername.address);
 
     var nick = new Nickname(incoming_nickname, client.id);
     client.fatal_error = '';
@@ -79,7 +72,7 @@ io.use(function(client, next) {
         $server.log('invalid nick: ' + nick.name, 3);
     }
 
-    $server.log(nick.name + ' (' + client.id + '@' + incoming_ip_hash + ': "' + incoming_ip + '") is attempting to connect via: ' + client.request._query.transport, 1);
+    $server.log(nick.name + ' (' + client.id + '@' + incoming_ip + ') is attempting to connect via: ' + client.request._query.transport, 1);
 
     if ($server.is_nickname(nick.name)) {
         client.fatal_error = 'nick_exists';
@@ -89,7 +82,7 @@ io.use(function(client, next) {
     client.nickname = nick.name;
     client.session_id = incoming_session_id;
     client.session_ip = incoming_ip;
-    client.session_seed = incoming_ip_hash;
+    client.session_seed = incoming_ip;
 
     return next();
 });
