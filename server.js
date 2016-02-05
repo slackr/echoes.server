@@ -26,6 +26,7 @@ var Nickname = require('./lib/nickname.js');
 var Channel = require('./lib/channel.js');
 var EchoesServer = require('./lib/echoes.js');
 
+var crypto = require('crypto');
 var express = require('express');
 var app = express();
 var redis = require('redis').createClient;
@@ -61,10 +62,15 @@ var $channels = {};
 var $server = new EchoesServer($nicknames, $channels, io);
 
 io.use(function(client, next) {
-    var handshake = client.request;
-    var incoming_nickname = handshake._query.nickname;
-    var incoming_session_id = handshake._query.session_id;
-    var incoming_ip = client.handshake.headers['x-forwarded-for'] || client.handshake.address.address;
+    var incoming_nickname = client.request._query.nickname;
+    var incoming_session_id = client.request._query.session_id;
+    var incoming_ip = (client.conn.remoteAddress || client.handshake.address.address || client.handshake.address || client.request.connection._peername.address);
+
+    if (typeof client.handshake.headers['x-forwarded-for'] != 'undefined') {
+        incoming_ip += client.handshake.headers['x-forwarded-for'];
+    }
+
+    var incoming_ip_hash = crypto.createHash('md5').update(incoming_ip).digest('hex');
 
     var nick = new Nickname(incoming_nickname, client.id);
     client.fatal_error = '';
@@ -73,7 +79,7 @@ io.use(function(client, next) {
         $server.log('invalid nick: ' + nick.name, 3);
     }
 
-    $server.log(nick.name + ' (' + client.id + '@' + incoming_ip + ') is attempting to connect via: ' + client.request._query.transport);
+    $server.log(nick.name + ' (' + client.id + '@' + incoming_ip_hash + ': "' + incoming_ip + '") is attempting to connect via: ' + client.request._query.transport, 1);
 
     if ($server.is_nickname(nick.name)) {
         client.fatal_error = 'nick_exists';
@@ -83,6 +89,7 @@ io.use(function(client, next) {
     client.nickname = nick.name;
     client.session_id = incoming_session_id;
     client.session_ip = incoming_ip;
+    client.session_seed = incoming_ip_hash;
 
     return next();
 });
@@ -98,7 +105,7 @@ io.on('connection', function(client) {
         form: {
             identity: client.nickname,
             session_id: client.session_id,
-            session_ip: client.session_ip,
+            session_seed: client.session_seed,
         }},
         (function(client, io) {
             return function(error, status, response) {
@@ -153,6 +160,6 @@ io.on('connection', function(client) {
 });
 
 
-http.listen(port, function(){
-    $server.log('listening on *:' + port);
+http.listen(port, AppConfig.SERVER_IP, function(){
+    $server.log('listening on ' + AppConfig.SERVER_IP +  ':' + port);
 });

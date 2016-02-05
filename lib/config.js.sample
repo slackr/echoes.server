@@ -2,6 +2,7 @@ module.exports = {
     LOG_LEVEL: 3,
     LOG_FILE_NAME: 'server.log',
     SERVER_PORT: 3000,
+    SERVER_IP: '127.0.0.1',
 
     ALLOWED_TRANSPORTS: [
         'websocket',
