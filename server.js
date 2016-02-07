@@ -54,8 +54,6 @@ var io = require('socket.io')(http, {
     transports: AppConfig.ALLOWED_TRANSPORTS
 });
 
-var port = process.env.PORT || AppConfig.SERVER_PORT; // for azure's sake
-
 var $nicknames = {};
 var $channels = {};
 var $server = new EchoesServer($nicknames, $channels, io);
@@ -154,6 +152,8 @@ io.on('connection', function(client) {
     });
 });
 
+
+var port = process.env.PORT || AppConfig.SERVER_PORT; // for cloud node.js
 
 http.listen(port, AppConfig.SERVER_IP, function(){
     $server.log('listening on ' + AppConfig.SERVER_IP +  ':' + port);
