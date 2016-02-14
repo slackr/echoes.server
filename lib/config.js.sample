@@ -1,4 +1,11 @@
-module.exports = {
+/**
+ * Echoes Server
+ *
+ * @author  Adrian@Slacknet
+ * @license http://www.gnu.org/licenses/gpl-3.0.txt GPLv3
+ */
+
+ module.exports = {
     LOG_LEVEL: 3,
     LOG_FILE_NAME: 'server.log',
     SERVER_PORT: 3000,
